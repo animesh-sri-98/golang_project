@@ -22,7 +22,27 @@ func createTable(db *sql.DB) error {
 	return err
 }
 
-func addProduct(db *sql.DB) {
+func createProduct(db *sql.DB) {
+
+}
+
+func updateProduct(db *sql.DB) {
+
+}
+
+func getAllProducts(db *sql.DB) {
+
+}
+
+func deleteProduct(db *sql.DB) {
+
+}
+
+func getProductById(db *sql.DB) {
+
+}
+
+func getProductByCategory(db *sql.DB) {
 
 }
 
