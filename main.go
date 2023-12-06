@@ -12,10 +12,10 @@ import (
 )
 
 type Product struct {
-	ID         int
-	Name       string
-	Price      float64
-	CategoryID int
+	ID         int     `json:"id"`
+	Name       string  `json:"name"`
+	Price      float64 `json:"price"`
+	CategoryID int     `json:"category_id"`
 }
 type Category struct {
 	ID   int    `json:"id"`
@@ -26,7 +26,8 @@ type Category struct {
 func getProducts(c *gin.Context) {
 	rows, err := db.Query("SELECT * FROM products")
 	if err != nil {
-		log.Fatal(err)
+		c.Error(err)
+		return
 	}
 	defer rows.Close()
 	var products []Product
@@ -35,6 +36,7 @@ func getProducts(c *gin.Context) {
 		err := rows.Scan(&p.ID, &p.Name, &p.Price, &p.CategoryID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
 		}
 		products = append(products, p)
 
@@ -65,6 +67,7 @@ func getProductsById(c *gin.Context) {
 
 }
 
+// Get Product list by category
 func getProductByCategory(c *gin.Context) {
 	category_str := c.Param("category_id")
 	category_id, err := strconv.Atoi(category_str)
@@ -166,7 +169,8 @@ func deleteProduct(c *gin.Context) {
 func getCategories(c *gin.Context) {
 	rows, err := db.Query("SELECT * FROM categories")
 	if err != nil {
-		log.Fatal(err)
+		c.Error(err)
+		return
 	}
 	defer rows.Close()
 	var categories []Category
