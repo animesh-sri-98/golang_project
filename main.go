@@ -24,6 +24,7 @@ type Category struct {
 
 // Get all products
 func getProducts(c *gin.Context) {
+	db := initDB(dataSourceName)
 	rows, err := db.Query("SELECT * FROM products")
 	if err != nil {
 		c.Error(err)
@@ -46,6 +47,7 @@ func getProducts(c *gin.Context) {
 
 // Get a single product by ID
 func getProductsById(c *gin.Context) {
+	db := initDB(dataSourceName)
 	str_id := c.Param("id")
 	id, err := strconv.Atoi(str_id)
 	if err != nil {
@@ -69,6 +71,7 @@ func getProductsById(c *gin.Context) {
 
 // Get Product list by category
 func getProductByCategory(c *gin.Context) {
+	db := initDB(dataSourceName)
 	category_str := c.Param("category_id")
 	category_id, err := strconv.Atoi(category_str)
 	if err != nil {
@@ -101,6 +104,7 @@ func getProductByCategory(c *gin.Context) {
 
 // Create a new product
 func createProduct(c *gin.Context) {
+	db := initDB(dataSourceName)
 	var product Product
 
 	err := c.ShouldBindJSON(&product)
@@ -123,6 +127,7 @@ func createProduct(c *gin.Context) {
 
 // Update a product by ID
 func updateProduct(c *gin.Context) {
+	db := initDB(dataSourceName)
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -147,6 +152,7 @@ func updateProduct(c *gin.Context) {
 }
 
 func deleteProduct(c *gin.Context) {
+	db := initDB(dataSourceName)
 
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
@@ -167,6 +173,7 @@ func deleteProduct(c *gin.Context) {
 
 // Get all categories
 func getCategories(c *gin.Context) {
+	db := initDB(dataSourceName)
 	rows, err := db.Query("SELECT * FROM categories")
 	if err != nil {
 		c.Error(err)
@@ -189,6 +196,7 @@ func getCategories(c *gin.Context) {
 // Get a single category by ID
 func getCategoryById(c *gin.Context) {
 	// Get the category ID from the request parameters
+	db := initDB(dataSourceName)
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -212,6 +220,8 @@ func getCategoryById(c *gin.Context) {
 
 // Create a new category
 func createCategory(c *gin.Context) {
+
+	db := initDB(dataSourceName)
 	// Parse the JSON request body to get category data
 	var category Category
 	if err := c.ShouldBindJSON(&category); err != nil {
@@ -220,20 +230,29 @@ func createCategory(c *gin.Context) {
 	}
 
 	// Insert the new category into the database
-	result, err := db.Exec("INSERT INTO categories (name) VALUES (?)", category.Name)
+	// result, err := db.Exec("INSERT INTO categories (name) VALUES (?)", category.Name)
+	stmt, err := db.Prepare("insert into categories (name) values (?)")
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	txn, err := db.Begin()
+	_, err = txn.Stmt(stmt).Exec(category.Name)
 
-	categoryID, err := result.LastInsertId()
+	// categoryID, err := result.LastInsertId()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	err = txn.Commit()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	// Set the ID in the category struct
-	category.ID = int(categoryID)
+	// category.ID = int(categoryID)
 
 	// Return the created category as JSON
 	c.JSON(http.StatusCreated, category)
@@ -242,34 +261,42 @@ func createCategory(c *gin.Context) {
 // Update a category by ID
 func updateCategory(c *gin.Context) {
 	// Get the category ID from the request parameters
+	db := initDB(dataSourceName)
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
+
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID"})
 		return
 	}
-
-	// Parse the JSON request body to get updated category data
+	stmt, err := db.Prepare("UPDATE categories SET name = (?) WHERE id = (?)")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	txn, err := db.Begin()
 	var updatedCategory Category
 	if err := c.ShouldBindJSON(&updatedCategory); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-
-	// Update the category in the database
-	_, err = db.Exec("UPDATE categories SET name = ? WHERE id = ?", updatedCategory.Name, id)
+	_, err = txn.Stmt(stmt).Exec(updatedCategory.Name, id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-
-	// Return success status
+	err = txn.Commit()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 	c.Status(http.StatusNoContent)
 }
 
 // Delete a category by ID
 func deleteCategory(c *gin.Context) {
 	// Get the category ID from the request parameters
+	db := initDB(dataSourceName)
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -278,7 +305,14 @@ func deleteCategory(c *gin.Context) {
 	}
 
 	// Delete the category from the database by ID
-	_, err = db.Exec("DELETE FROM categories WHERE id = ?", id)
+	stmt, err := db.Prepare("DELETE FROM categories WHERE id = (?)")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	}
+	txn, err := db.Begin()
+
+	_, err = txn.Stmt(stmt).Exec(id)
+	err = txn.Commit()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -288,7 +322,7 @@ func deleteCategory(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-func initDB(dataSourceName string) {
+func initDB(dataSourceName string) *sql.DB {
 	db, err := sql.Open("mysql", dataSourceName)
 	if err != nil {
 		log.Fatal(err)
@@ -297,14 +331,21 @@ func initDB(dataSourceName string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	fmt.Println("Connected to mysql db...")
-	createTables(db)
-
+	return db
 }
 
-func createTables(db *sql.DB) {
+func createTables() {
+	user := "root"
+	password := "Manager0"
+	host := "127.0.0.1"
+	port := 3306
+	dbName := "mysql"
+	dataSourceName := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", user, password, host, port, dbName)
+	db := initDB(dataSourceName)
+
 	// Create categories table
+
 	_, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS categories (
 			id INT AUTO_INCREMENT PRIMARY KEY,
@@ -333,16 +374,24 @@ func createTables(db *sql.DB) {
 }
 
 var db *sql.DB
+var user = "root"
+var password = "Manager0"
+var host = "127.0.0.1"
+var port = 3306
+var dbName = "mysql"
+var dataSourceName = fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", user, password, host, port, dbName)
 
 func main() {
 
-	user := "root"
-	password := "Manager0"
-	host := "127.0.0.1"
-	port := 3306
-	dbName := "mysql"
-	dataSourceName := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", user, password, host, port, dbName)
-	initDB(dataSourceName)
+	// user := "root"
+	// password := "Manager0"
+	// host := "127.0.0.1"
+	// port := 3306
+	// dbName := "mysql"
+	// dataSourceName := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", user, password, host, port, dbName)
+	// initDB(dataSourceName)
+
+	createTables()
 
 	//router
 	router := gin.Default()
@@ -354,6 +403,7 @@ func main() {
 	router.DELETE("/products/:id", deleteProduct)
 	router.GET("/products/category", getProductByCategory)
 
+	// router.GET("/createTables", createTables)
 	router.GET("/categories", getCategories)
 	router.GET("/categories/:id", getCategoryById)
 	router.POST("/categories", createCategory)
