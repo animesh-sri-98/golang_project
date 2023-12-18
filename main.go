@@ -336,12 +336,12 @@ func initDB(dataSourceName string) *sql.DB {
 }
 
 func createTables() {
-	user := "root"
-	password := "Manager0"
-	host := "127.0.0.1"
-	port := 3306
-	dbName := "mysql"
-	dataSourceName := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", user, password, host, port, dbName)
+	// user := "root"
+	// password := "Manager0"
+	// host := "127.0.0.1"
+	// port := 3306
+	// dbName := "mysql"
+	// dataSourceName := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", user, password, host, port, dbName)
 	db := initDB(dataSourceName)
 
 	// Create categories table
@@ -401,7 +401,7 @@ func main() {
 	router.POST("/products", createProduct)
 	router.PUT("/products/:id", updateProduct)
 	router.DELETE("/products/:id", deleteProduct)
-	router.GET("/products/category", getProductByCategory)
+	router.GET("/products/category/:category_id", getProductByCategory)
 
 	// router.GET("/createTables", createTables)
 	router.GET("/categories", getCategories)
